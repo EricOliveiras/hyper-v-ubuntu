@@ -78,4 +78,70 @@ apache2 -v
 mysql --version
 php -v
 
+# Instala o Samba
+echo "Instalando o Samba..."
+sudo apt-get install samba -y
+
+# Configura o Samba para compartilhar a pasta /var/www/html
+echo "Configurando o Samba para compartilhar a pasta /var/www/html..."
+sudo tee -a /etc/samba/smb.conf <<EOL
+
+[www]
+   path = /var/www/html
+   browseable = yes
+   writable = yes
+   guest ok = yes
+   create mask = 0777
+   directory mask = 0777
+EOL
+
+# Ajusta permissões para o Samba
+echo "Ajustando permissões para o Samba..."
+sudo chown -R nobody:nogroup /var/www/html
+
+# Reinicia o serviço do Samba
+echo "Reiniciando o Samba..."
+sudo systemctl restart smbd
+sudo systemctl enable smbd
+
+# Clona o repositório para um diretório temporário
+echo "Clonando o repositório do projeto para um diretório temporário..."
+sudo git clone https://github.com/EricOliveiras/myportfolio.git /tmp/myportfolio
+
+# Remove arquivos existentes do diretório /var/www/html
+echo "Removendo arquivos antigos de /var/www/html..."
+sudo rm -rf /var/www/html/*
+
+# Move o conteúdo do diretório temporário para /var/www/html
+echo "Movendo o conteúdo para /var/www/html..."
+sudo mv /tmp/myportfolio/* /var/www/html/
+
+# Remove o diretório temporário
+sudo rm -rf /tmp/myportfolio
+
+# Ajusta permissões para o novo conteúdo
+echo "Ajustando permissões para o novo conteúdo..."
+sudo chown -R www-data:www-data /var/www/html/
+sudo chmod -R 755 /var/www/html/
+
+# Instala o phpMyAdmin
+echo "Instalando o phpMyAdmin..."
+sudo apt-get install phpmyadmin -y
+
+# Verifica se a instalação foi bem-sucedida
+if ! dpkg -l | grep -q phpmyadmin; then
+    echo "phpMyAdmin não foi instalado corretamente."
+    exit 1
+fi
+
+# Configura o phpMyAdmin
+echo "Configurando o phpMyAdmin..."
+# Adiciona a configuração do phpMyAdmin ao Apache
+if ! grep -q "phpmyadmin/apache.conf" /etc/apache2/apache2.conf; then
+    echo "Include /etc/phpmyadmin/apache.conf" | sudo tee -a /etc/apache2/apache2.conf
+fi
+# Reinicia o Apache para aplicar as configurações do phpMyAdmin
+echo "Reiniciando o Apache para aplicar as configurações do phpMyAdmin..."
+sudo systemctl restart apache2
+
 echo "Configuração do servidor concluída!"
